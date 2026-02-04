@@ -3,6 +3,7 @@ const admin = require('firebase-admin');
 let firebaseApp = null;
 let isFirebaseAvailable = false;
 let firestoreDb = null;
+let storageBucket = null;
 
 const initializeFirebase = () => {
   try {
@@ -19,14 +20,19 @@ const initializeFirebase = () => {
 
       firebaseApp = admin.initializeApp({
         credential: admin.credential.cert(serviceAccount),
+        storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
       });
       
       // Initialize Firestore
       firestoreDb = admin.firestore();
       
+      // Initialize Storage
+      storageBucket = admin.storage().bucket();
+      
       isFirebaseAvailable = true;
       console.log('✅ Firebase initialized successfully');
       console.log('✅ Firestore database connected');
+      console.log('✅ Firebase Storage connected');
     } else {
       console.log('⚠️ Firebase credentials not provided, using local database only');
     }
@@ -40,6 +46,54 @@ initializeFirebase();
 
 // Get Firestore database instance
 const getFirestore = () => firestoreDb;
+
+// Get Storage bucket instance
+const getStorageBucket = () => storageBucket;
+
+// Upload file to Firebase Storage
+const uploadToStorage = async (fileBuffer, fileName, mimeType) => {
+  if (!isFirebaseAvailable || !storageBucket) {
+    throw new Error('Firebase Storage not available');
+  }
+  
+  try {
+    const file = storageBucket.file(`reports/${fileName}`);
+    
+    await file.save(fileBuffer, {
+      metadata: {
+        contentType: mimeType,
+      },
+    });
+    
+    // Make file publicly accessible
+    await file.makePublic();
+    
+    // Get public URL
+    const publicUrl = `https://storage.googleapis.com/${storageBucket.name}/reports/${fileName}`;
+    
+    console.log(`✅ File uploaded to Firebase Storage: ${publicUrl}`);
+    return publicUrl;
+  } catch (error) {
+    console.error('❌ Firebase Storage upload error:', error.message);
+    throw error;
+  }
+};
+
+// Delete file from Firebase Storage
+const deleteFromStorage = async (fileName) => {
+  if (!isFirebaseAvailable || !storageBucket) {
+    return null;
+  }
+  
+  try {
+    await storageBucket.file(`reports/${fileName}`).delete();
+    console.log(`✅ File deleted from Firebase Storage: ${fileName}`);
+    return true;
+  } catch (error) {
+    console.error('❌ Firebase Storage delete error:', error.message);
+    return null;
+  }
+};
 
 const verifyFirebaseToken = async (idToken) => {
   if (!isFirebaseAvailable) {
@@ -201,6 +255,9 @@ module.exports = {
   firebaseApp,
   isFirebaseAvailable: () => isFirebaseAvailable,
   getFirestore,
+  getStorageBucket,
+  uploadToStorage,
+  deleteFromStorage,
   verifyFirebaseToken,
   createFirebaseUser,
   updateFirebaseUser,

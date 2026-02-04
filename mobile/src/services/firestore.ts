@@ -18,6 +18,7 @@ const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || '',
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || '',
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
 };
 
 // Use existing Firebase app if already initialized, otherwise create new one
@@ -55,6 +56,7 @@ export interface Report {
   created_at: Timestamp | Date;
   user_uid: string;
   user_email?: string;
+  photos?: string[];
 }
 
 // Get all reports from Firestore

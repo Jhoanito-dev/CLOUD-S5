@@ -11,6 +11,8 @@ node_modules/
 dist/
 build/
 *.apk
+.vite/
+*/.vite/
 
 # IDE
 .idea/

@@ -16,7 +16,7 @@ import {
   IonIcon,
   RefresherEventDetail,
 } from '@ionic/react';
-import { locationOutline, calendarOutline, cashOutline } from 'ionicons/icons';
+import { locationOutline, calendarOutline, cashOutline, imageOutline } from 'ionicons/icons';
 import { useAuth } from '../context/AuthContext';
 import { getReports, getReportsByUser, Report as FirestoreReport } from '../services/firestore';
 
@@ -31,6 +31,7 @@ interface Report {
   status: string;
   created_at: any;
   user_uid?: string;
+  photos?: string[];
 }
 
 const MyReports: React.FC = () => {
@@ -196,6 +197,33 @@ const MyReports: React.FC = () => {
                     <p style={{ margin: '8px 0 0', fontSize: '14px', color: '#666' }}>
                       Entreprise: {report.company}
                     </p>
+                  )}
+
+                  {/* Photos gallery */}
+                  {report.photos && report.photos.length > 0 && (
+                    <div style={{ marginTop: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '8px', fontSize: '14px', color: '#666' }}>
+                        <IonIcon icon={imageOutline} />
+                        <span>{report.photos.length} photo(s)</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+                        {report.photos.map((photoUrl, index) => (
+                          <img
+                            key={index}
+                            src={photoUrl}
+                            alt={`Photo ${index + 1}`}
+                            style={{
+                              width: '80px',
+                              height: '80px',
+                              objectFit: 'cover',
+                              borderRadius: '8px',
+                              flexShrink: 0,
+                            }}
+                            onClick={() => window.open(photoUrl, '_blank')}
+                          />
+                        ))}
+                      </div>
+                    </div>
                   )}
                 </div>
               </IonItem>
