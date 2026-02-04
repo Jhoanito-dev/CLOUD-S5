@@ -8,6 +8,7 @@ const userRoutes = require('./routes/users');
 const reportRoutes = require('./routes/reports');
 const statsRoutes = require('./routes/stats');
 const syncRoutes = require('./routes/sync');
+const photosRoutes = require('./routes/photos');
 
 const { errorHandler } = require('./middleware/errorHandler');
 
@@ -40,6 +41,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/sync', syncRoutes);
+app.use('/api/photos', photosRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

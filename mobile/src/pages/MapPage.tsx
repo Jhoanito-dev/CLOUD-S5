@@ -10,13 +10,17 @@ import {
   IonIcon,
   IonSpinner,
   useIonToast,
+  IonActionSheet,
 } from '@ionic/react';
-import { logOutOutline, locationOutline, locateOutline, navigateOutline } from 'ionicons/icons';
+import { logOutOutline, locationOutline, locateOutline, navigateOutline, cameraOutline, imagesOutline, closeCircleOutline } from 'ionicons/icons';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { Geolocation } from '@capacitor/geolocation';
+import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { useAuth } from '../context/AuthContext';
-import { getReports, addReport, subscribeToReports, Report as FirestoreReport } from '../services/firestore';
+import { getReports, addReport, subscribeToReports, Report as FirestoreReport, db } from '../services/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -106,7 +110,85 @@ const MapPage: React.FC = () => {
     budget: '',
     company: '',
   });
+  const [photos, setPhotos] = useState<{ base64: string; format: string }[]>([]);
+  const [showPhotoActionSheet, setShowPhotoActionSheet] = useState(false);
+  const [uploadingPhotos, setUploadingPhotos] = useState(false);
   const [present] = useIonToast();
+
+  // Take photo with camera
+  const takePhoto = async () => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Camera,
+      });
+      if (photo.base64String) {
+        setPhotos(prev => [...prev, { base64: photo.base64String!, format: photo.format }]);
+        present({ message: 'Photo ajoutée', duration: 1500, color: 'success' });
+      }
+    } catch (error: any) {
+      if (error.message !== 'User cancelled photos app') {
+        present({ message: 'Erreur lors de la prise de photo', duration: 2000, color: 'danger' });
+      }
+    }
+  };
+
+  // Pick from gallery
+  const pickFromGallery = async () => {
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 80,
+        allowEditing: false,
+        resultType: CameraResultType.Base64,
+        source: CameraSource.Photos,
+      });
+      if (photo.base64String) {
+        setPhotos(prev => [...prev, { base64: photo.base64String!, format: photo.format }]);
+        present({ message: 'Photo ajoutée', duration: 1500, color: 'success' });
+      }
+    } catch (error: any) {
+      if (error.message !== 'User cancelled photos app') {
+        present({ message: 'Erreur lors de la sélection', duration: 2000, color: 'danger' });
+      }
+    }
+  };
+
+  // Remove a photo
+  const removePhoto = (index: number) => {
+    setPhotos(prev => prev.filter((_, i) => i !== index));
+  };
+
+  // Upload photos to Firebase Storage
+  const uploadPhotosToStorage = async (reportId: string): Promise<string[]> => {
+    if (photos.length === 0) return [];
+    
+    const storage = getStorage();
+    const urls: string[] = [];
+    
+    for (let i = 0; i < photos.length; i++) {
+      const photo = photos[i];
+      const fileName = `${reportId}_${Date.now()}_${i}.${photo.format || 'jpeg'}`;
+      const storageRef = ref(storage, `reports/${fileName}`);
+      
+      // Convert base64 to blob
+      const byteCharacters = atob(photo.base64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let j = 0; j < byteCharacters.length; j++) {
+        byteNumbers[j] = byteCharacters.charCodeAt(j);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: `image/${photo.format || 'jpeg'}` });
+      
+      // Upload to Firebase Storage
+      await uploadBytes(storageRef, blob);
+      const downloadUrl = await getDownloadURL(storageRef);
+      urls.push(downloadUrl);
+    }
+    
+    return urls;
+  };
 
   useEffect(() => {
     // Subscribe to real-time updates from Firestore
@@ -241,6 +323,8 @@ const MapPage: React.FC = () => {
     if (!selectedPosition || !user) return;
 
     try {
+      setUploadingPhotos(true);
+      
       // Add report directly to Firestore
       const reportId = await addReport({
         latitude: selectedPosition[0],
@@ -252,9 +336,32 @@ const MapPage: React.FC = () => {
         status: 'new',
         user_uid: user.uid,
         user_email: user.email || '',
+        photos: [], // Initialize empty, will update after upload
       });
 
       if (reportId) {
+        // Upload photos to Firebase Storage
+        if (photos.length > 0) {
+          try {
+            const photoUrls = await uploadPhotosToStorage(reportId);
+            
+            // Update Firestore with photo URLs
+            if (photoUrls.length > 0) {
+              const reportRef = doc(db, 'reports', reportId);
+              await updateDoc(reportRef, {
+                photos: photoUrls,
+              });
+            }
+          } catch (photoError) {
+            console.error('Error uploading photos:', photoError);
+            present({
+              message: 'Signalement créé mais erreur avec les photos',
+              duration: 3000,
+              color: 'warning',
+            });
+          }
+        }
+
         present({
           message: 'Signalement créé avec succès',
           duration: 2000,
@@ -264,6 +371,7 @@ const MapPage: React.FC = () => {
         setShowModal(false);
         setSelectedPosition(null);
         setFormData({ description: '', surface: '', budget: '', company: '' });
+        setPhotos([]);
         // No need to fetch - subscribeToReports will auto-update
       } else {
         throw new Error('Failed to add report');
@@ -275,6 +383,8 @@ const MapPage: React.FC = () => {
         duration: 2000,
         color: 'danger',
       });
+    } finally {
+      setUploadingPhotos(false);
     }
   };
 
@@ -576,22 +686,134 @@ const MapPage: React.FC = () => {
                   />
                 </div>
 
+                {/* Photos section */}
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, color: '#374151' }}>
+                    Photos
+                  </label>
+                  
+                  {/* Photo thumbnails */}
+                  {photos.length > 0 && (
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      gap: '8px', 
+                      marginBottom: '12px' 
+                    }}>
+                      {photos.map((photo, index) => (
+                        <div key={index} style={{ position: 'relative' }}>
+                          <img
+                            src={`data:image/${photo.format || 'jpeg'};base64,${photo.base64}`}
+                            alt={`Photo ${index + 1}`}
+                            style={{
+                              width: '70px',
+                              height: '70px',
+                              objectFit: 'cover',
+                              borderRadius: '8px',
+                              border: '2px solid #e5e7eb',
+                            }}
+                          />
+                          <button
+                            onClick={() => removePhoto(index)}
+                            style={{
+                              position: 'absolute',
+                              top: '-8px',
+                              right: '-8px',
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '50%',
+                              backgroundColor: '#ef4444',
+                              border: 'none',
+                              color: 'white',
+                              fontSize: '16px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  {/* Add photo buttons */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      onClick={takePhoto}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        backgroundColor: '#f3f4f6',
+                        border: '1px dashed #d1d5db',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        fontSize: '14px',
+                        color: '#374151',
+                      }}
+                    >
+                      <IonIcon icon={cameraOutline} /> Caméra
+                    </button>
+                    <button
+                      onClick={pickFromGallery}
+                      style={{
+                        flex: 1,
+                        padding: '10px',
+                        backgroundColor: '#f3f4f6',
+                        border: '1px dashed #d1d5db',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px',
+                        fontSize: '14px',
+                        color: '#374151',
+                      }}
+                    >
+                      <IonIcon icon={imagesOutline} /> Galerie
+                    </button>
+                  </div>
+                  {photos.length > 0 && (
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '8px' }}>
+                      {photos.length} photo(s) sélectionnée(s)
+                    </p>
+                  )}
+                </div>
+
                 <button
                   onClick={handleSubmit}
-                  disabled={!selectedPosition}
+                  disabled={!selectedPosition || uploadingPhotos}
                   style={{
                     width: '100%',
                     padding: '12px',
-                    backgroundColor: selectedPosition ? '#3b82f6' : '#9ca3af',
+                    backgroundColor: (!selectedPosition || uploadingPhotos) ? '#9ca3af' : '#3b82f6',
                     color: 'white',
                     border: 'none',
                     borderRadius: '8px',
                     fontSize: '16px',
                     fontWeight: 600,
-                    cursor: selectedPosition ? 'pointer' : 'not-allowed',
+                    cursor: (!selectedPosition || uploadingPhotos) ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
                   }}
                 >
-                  Créer le signalement
+                  {uploadingPhotos ? (
+                    <>
+                      <IonSpinner name="crescent" style={{ width: '20px', height: '20px' }} />
+                      Envoi en cours...
+                    </>
+                  ) : (
+                    'Créer le signalement'
+                  )}
                 </button>
               </div>
             </div>
