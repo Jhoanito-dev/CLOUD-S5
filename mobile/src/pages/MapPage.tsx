@@ -40,6 +40,7 @@ interface Report {
   company?: string;
   status: string;
   created_at: any;
+  photos?: string[];
 }
 
 const LocationPicker: React.FC<{ onLocationSelect: (lat: number, lng: number) => void }> = ({ onLocationSelect }) => {
@@ -455,11 +456,36 @@ const MapPage: React.FC = () => {
                 icon={createIcon(getStatusColor(report.status))}
               >
                 <Popup>
-                  <div>
+                  <div style={{ minWidth: '180px' }}>
                     <strong>#{report.id}</strong>
+                    <p style={{ margin: '4px 0' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '2px 6px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        backgroundColor: getStatusColor(report.status),
+                        color: 'white',
+                      }}>
+                        {report.status === 'new' ? 'Nouveau' : report.status === 'in_progress' ? 'En cours' : 'Terminé'}
+                      </span>
+                    </p>
                     <p>{report.description || 'Aucune description'}</p>
                     {report.surface && <p>Surface: {report.surface} m²</p>}
                     {report.budget && <p>Budget: {report.budget} Ar</p>}
+                    {report.company && <p>Entreprise: {report.company}</p>}
+                    {report.photos && report.photos.length > 0 && (
+                      <div style={{ marginTop: '8px' }}>
+                        <a 
+                          href={report.photos[0]}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#3b82f6', fontSize: '13px' }}
+                        >
+                          🖼️ Voir {report.photos.length} photo(s)
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </Popup>
               </Marker>
