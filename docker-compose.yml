@@ -1,0 +1,79 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: cloud_postgres
+    environment:
+      POSTGRES_USER: clouduser
+      POSTGRES_PASSWORD: cloudpass
+      POSTGRES_DB: roadworks
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - cloud_network
+
+  # TileServer for offline maps
+  tileserver:
+    image: maptiler/tileserver-gl:latest
+    container_name: cloud_tileserver
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/data
+    command: --config /data/config.json
+    networks:
+      - cloud_network
+
+  # Backend API Node.js
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloud_backend
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      DATABASE_URL: postgres://clouduser:cloudpass@postgres:5432/roadworks
+      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
+      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
+      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      MAX_LOGIN_ATTEMPTS: 3
+      SESSION_DURATION: 3600
+    ports:
+      - "3000:3000"
+    depends_on:
+      - postgres
+    networks:
+      - cloud_network
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+
+  # Frontend React
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloud_frontend
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+    networks:
+      - cloud_network
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:
+
+networks:
+  cloud_network:
+    driver: bridge

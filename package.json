@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "firebase": "^12.8.0",
+    "http-proxy-middleware": "^3.0.5"
+  }
+}

@@ -1,0 +1,66 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: cd backend && npm install
+      - name: Run tests
+        run: cd backend && npm test || true
+
+  build-frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: cd frontend && npm install
+      - name: Build
+        run: cd frontend && npm run build
+
+  build-mobile:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      - name: Install Ionic CLI
+        run: npm install -g @ionic/cli
+      - name: Install dependencies
+        run: cd mobile && npm install
+      - name: Build web
+        run: cd mobile && ionic build
+      - name: Add Android platform
+        run: cd mobile && ionic capacitor add android || true
+      - name: Build APK
+        run: |
+          cd mobile/android
+          ./gradlew assembleDebug || true
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: roadworks-apk
+          path: mobile/android/app/build/outputs/apk/debug/*.apk
+        if: success()

@@ -1,0 +1,13 @@
+{
+  "appId": "mg.roadworks.app",
+  "appName": "Travaux Routiers",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000
+    }
+  }
+}
