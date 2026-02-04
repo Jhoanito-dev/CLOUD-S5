@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import { FileWarning, Ruler, DollarSign, TrendingUp, LogIn } from 'lucide-react';
+import { FileWarning, Ruler, DollarSign, TrendingUp, LogIn, Image } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import 'leaflet/dist/leaflet.css';
@@ -145,6 +145,19 @@ function MapView() {
                       {report.company && <p><strong>Entreprise:</strong> {report.company}</p>}
                       {report.description && (
                         <p className="mt-2 text-gray-600">{report.description}</p>
+                      )}
+                      {report.photo_url && (
+                        <div className="mt-2 pt-2 border-t">
+                          <a 
+                            href={typeof report.photo_url === 'string' && report.photo_url.startsWith('[') ? JSON.parse(report.photo_url)[0] : report.photo_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center text-blue-600 hover:text-blue-800 text-sm"
+                          >
+                            <Image className="w-4 h-4 mr-1" />
+                            Voir les photos
+                          </a>
+                        </div>
                       )}
                     </div>
                   </div>
