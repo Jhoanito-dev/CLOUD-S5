@@ -63,11 +63,11 @@ const Stats: React.FC = () => {
         }
       };
       
-      // Calculate progress percentage (done / total * 100)
+      // Avancement pondéré : nouveau=0%, en_cours=50%, terminé=100%
       if (calculatedStats.total_reports > 0) {
         calculatedStats.progress_percentage = Math.round(
-          (calculatedStats.by_status.done / calculatedStats.total_reports) * 100
-        );
+          ((0 * calculatedStats.by_status.new + 50 * calculatedStats.by_status.in_progress + 100 * calculatedStats.by_status.done) / calculatedStats.total_reports) * 100
+        ) / 100;
       }
       
       console.log('Stats calculated:', calculatedStats);

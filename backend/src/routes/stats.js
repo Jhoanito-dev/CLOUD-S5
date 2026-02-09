@@ -52,8 +52,9 @@ router.get('/', optionalAuth, async (req, res) => {
 
     const total = totalResult.rows[0];
     const totalReports = parseInt(total.total_reports);
+    // Avancement pondéré : nouveau=0%, en_cours=50%, terminé=100%
     const progressPercentage = totalReports > 0 
-      ? Math.round((byStatus.done / totalReports) * 100 * 100) / 100
+      ? Math.round(((0 * byStatus.new + 50 * byStatus.in_progress + 100 * byStatus.done) / totalReports) * 100) / 100
       : 0;
 
     res.json({
