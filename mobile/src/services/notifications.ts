@@ -1,7 +1,7 @@
 import { PushNotifications } from '@capacitor/push-notifications';
 import { Capacitor } from '@capacitor/core';
-import { doc, setDoc, getFirestore } from 'firebase/firestore';
-import { getApp } from 'firebase/app';
+import { doc, setDoc, getFirestore, Firestore } from 'firebase/firestore';
+import { getApp, getApps } from 'firebase/app';
 
 /**
  * Service de notifications push via Firebase Cloud Messaging (FCM)
@@ -9,11 +9,27 @@ import { getApp } from 'firebase/app';
  * - Gère les permissions et les listeners de notifications
  */
 
-const db = getFirestore(getApp());
+// Initialisation lazy pour éviter l'erreur si Firebase n'est pas encore prêt
+const getDb = (): Firestore | null => {
+  try {
+    if (getApps().length > 0) {
+      return getFirestore(getApp());
+    }
+    return null;
+  } catch (error) {
+    console.error('⚠️ Firebase not ready for notifications:', error);
+    return null;
+  }
+};
 
 // Enregistrer le token FCM dans Firestore pour l'utilisateur connecté
 const saveTokenToFirestore = async (token: string, userUid: string) => {
   try {
+    const db = getDb();
+    if (!db) {
+      console.log('⚠️ Firestore not available, cannot save FCM token');
+      return;
+    }
     await setDoc(doc(db, 'fcm_tokens', userUid), {
       token,
       user_uid: userUid,
