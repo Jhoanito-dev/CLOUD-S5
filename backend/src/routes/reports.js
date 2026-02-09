@@ -245,8 +245,8 @@ router.post('/', authenticateToken, [
 
     // Then create in PostgreSQL with the Firestore ID as uid
     const result = await db.query(
-      `INSERT INTO reports (uid, user_id, latitude, longitude, description, surface, budget, company, photo_url, firebase_synced)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO reports (uid, user_id, latitude, longitude, description, surface, budget, company, photo_url, firebase_synced, date_nouveau)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
        RETURNING *`,
       [reportUid, req.user.id, latitude, longitude, description, surface, budget, company, photo_url, isFirebaseAvailable()]
     );
@@ -428,9 +428,15 @@ router.patch('/:id/status', authenticateToken, requireRole('manager'), [
 
     const { status } = req.body;
 
+    // Déterminer la colonne de date à mettre à jour selon le statut
+    let dateColumn = '';
+    if (status === 'new') dateColumn = ', date_nouveau = CURRENT_TIMESTAMP, date_en_cours = NULL, date_termine = NULL';
+    else if (status === 'in_progress') dateColumn = ', date_en_cours = CURRENT_TIMESTAMP, date_termine = NULL';
+    else if (status === 'done') dateColumn = ', date_termine = CURRENT_TIMESTAMP';
+
     // Update in PostgreSQL and get the uid (which is the Firestore doc ID)
     const result = await db.query(
-      'UPDATE reports SET status = $1 WHERE id = $2 AND is_deleted = false RETURNING *',
+      `UPDATE reports SET status = $1${dateColumn} WHERE id = $2 AND is_deleted = false RETURNING *`,
       [status, req.params.id]
     );
 

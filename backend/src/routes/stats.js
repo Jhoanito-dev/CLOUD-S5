@@ -72,6 +72,60 @@ router.get('/', optionalAuth, async (req, res) => {
 
 /**
  * @swagger
+ * /api/stats/delays:
+ *   get:
+ *     summary: Get average processing delays
+ *     tags: [Statistics]
+ *     responses:
+ *       200:
+ *         description: Average delays between status changes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 avg_delay_nouveau_en_cours:
+ *                   type: number
+ *                   description: Délai moyen nouveau → en cours (en jours)
+ *                 avg_delay_en_cours_termine:
+ *                   type: number
+ *                   description: Délai moyen en cours → terminé (en jours)
+ *                 avg_delay_total:
+ *                   type: number
+ *                   description: Délai moyen nouveau → terminé (en jours)
+ *                 total_completed:
+ *                   type: integer
+ */
+router.get('/delays', optionalAuth, async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT 
+        ROUND(AVG(EXTRACT(EPOCH FROM (date_en_cours - date_nouveau)) / 86400)::numeric, 2) as avg_delay_nouveau_en_cours,
+        ROUND(AVG(EXTRACT(EPOCH FROM (date_termine - date_en_cours)) / 86400)::numeric, 2) as avg_delay_en_cours_termine,
+        ROUND(AVG(EXTRACT(EPOCH FROM (date_termine - date_nouveau)) / 86400)::numeric, 2) as avg_delay_total,
+        COUNT(*) as total_completed
+      FROM reports 
+      WHERE is_deleted = false 
+        AND status = 'done'
+        AND date_nouveau IS NOT NULL 
+        AND date_termine IS NOT NULL
+    `);
+
+    const row = result.rows[0];
+    res.json({
+      avg_delay_nouveau_en_cours: parseFloat(row.avg_delay_nouveau_en_cours) || 0,
+      avg_delay_en_cours_termine: parseFloat(row.avg_delay_en_cours_termine) || 0,
+      avg_delay_total: parseFloat(row.avg_delay_total) || 0,
+      total_completed: parseInt(row.total_completed) || 0,
+    });
+  } catch (error) {
+    console.error('Get delays error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
  * /api/stats/monthly:
  *   get:
  *     summary: Get monthly statistics
