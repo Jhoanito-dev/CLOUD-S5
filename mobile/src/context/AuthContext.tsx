@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, User } from 'firebase/auth';
+import { initPushNotifications, removePushNotifications } from '../services/notifications';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || '',
@@ -29,6 +30,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
       setLoading(false);
+
+      // Initialiser les notifications push quand l'utilisateur est connecté
+      if (firebaseUser) {
+        initPushNotifications(firebaseUser.uid);
+      } else {
+        removePushNotifications();
+      }
     });
 
     return () => unsubscribe();

@@ -3,7 +3,7 @@ const { body, query, validationResult } = require('express-validator');
 const { v4: uuidv4 } = require('uuid');
 const db = require('../config/database');
 const { authenticateToken, optionalAuth, requireRole } = require('../middleware/auth');
-const { admin, isFirebaseAvailable, getFirestore } = require('../config/firebase');
+const { admin, isFirebaseAvailable, getFirestore, sendStatusChangeNotification } = require('../config/firebase');
 
 const router = express.Router();
 
@@ -461,6 +461,17 @@ router.patch('/:id/status', authenticateToken, requireRole('manager'), [
       } catch (firestoreError) {
         console.error('⚠️ Firestore sync error (non-blocking):', firestoreError.message);
         // Don't fail the request if Firestore sync fails
+      }
+
+      // Envoyer une notification push à l'utilisateur qui a créé le signalement
+      try {
+        // Récupérer le user_uid du créateur du report
+        const userResult = await db.query('SELECT uid FROM users WHERE id = $1', [report.user_id]);
+        if (userResult.rows.length > 0) {
+          await sendStatusChangeNotification(userResult.rows[0].uid, report.id, status);
+        }
+      } catch (notifError) {
+        console.error('⚠️ Push notification error (non-blocking):', notifError.message);
       }
     }
 

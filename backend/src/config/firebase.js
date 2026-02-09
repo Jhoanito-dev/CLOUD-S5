@@ -250,6 +250,65 @@ const getReportsFromFirestore = async () => {
   }
 };
 
+// ===== PUSH NOTIFICATIONS =====
+
+// Envoyer une notification push à un utilisateur via son FCM token stocké dans Firestore
+const sendStatusChangeNotification = async (reportUserUid, reportId, newStatus) => {
+  if (!isFirebaseAvailable || !firestoreDb) {
+    console.log('⚠️ Firebase not available, skipping push notification');
+    return null;
+  }
+  try {
+    // Récupérer le FCM token de l'utilisateur depuis Firestore
+    const tokenDoc = await firestoreDb.collection('fcm_tokens').doc(reportUserUid).get();
+    
+    if (!tokenDoc.exists) {
+      console.log(`⚠️ No FCM token found for user ${reportUserUid}`);
+      return null;
+    }
+
+    const { token } = tokenDoc.data();
+    if (!token) {
+      console.log(`⚠️ Empty FCM token for user ${reportUserUid}`);
+      return null;
+    }
+
+    const statusLabels = {
+      'new': 'Nouveau',
+      'in_progress': 'En cours',
+      'done': 'Terminé',
+    };
+
+    const message = {
+      token: token,
+      notification: {
+        title: 'Mise à jour de votre signalement',
+        body: `Le signalement #${reportId} est passé au statut : ${statusLabels[newStatus] || newStatus}`,
+      },
+      data: {
+        report_id: String(reportId),
+        status: newStatus,
+        type: 'status_change',
+      },
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log(`✅ Push notification sent to user ${reportUserUid}:`, response);
+    return response;
+  } catch (error) {
+    // Si le token est invalide, on le supprime
+    if (error.code === 'messaging/registration-token-not-registered' ||
+        error.code === 'messaging/invalid-registration-token') {
+      console.log(`🧹 Removing invalid FCM token for user ${reportUserUid}`);
+      try {
+        await firestoreDb.collection('fcm_tokens').doc(reportUserUid).delete();
+      } catch (e) { /* ignore */ }
+    }
+    console.error('⚠️ Push notification error (non-blocking):', error.message);
+    return null;
+  }
+};
+
 module.exports = {
   admin,
   firebaseApp,
@@ -265,4 +324,5 @@ module.exports = {
   updateReportInFirestore,
   syncReportStatusToFirestore,
   getReportsFromFirestore,
+  sendStatusChangeNotification,
 };
