@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, ChevronUp, ChevronDown, MapPin, X, Edit } from 'lucide-react';
+import { Plus, Trash2, ChevronUp, ChevronDown, MapPin, X, Edit, Image } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
@@ -30,6 +30,7 @@ function Reports() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingReport, setEditingReport] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
+  const [showPhotosModal, setShowPhotosModal] = useState(null);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState('');
@@ -171,6 +172,17 @@ function Reports() {
       <ChevronDown className="w-4 h-4 inline" />;
   };
 
+  // Parse photos from string or array
+  const parsePhotos = (photoData) => {
+    if (!photoData) return [];
+    if (Array.isArray(photoData)) return photoData;
+    try {
+      return JSON.parse(photoData);
+    } catch {
+      return [photoData];
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -235,6 +247,12 @@ function Reports() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Entreprise
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Dates étapes
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Photos
+              </th>
               {isManager && (
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
                   Actions
@@ -259,6 +277,32 @@ function Reports() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {report.company || '-'}
+                </td>
+                <td className="px-6 py-4 text-xs text-gray-500">
+                  <div className="space-y-0.5">
+                    {report.date_nouveau && (
+                      <div><span className="text-red-600 font-medium">Nouveau:</span> {new Date(report.date_nouveau).toLocaleDateString('fr-FR')}</div>
+                    )}
+                    {report.date_en_cours && (
+                      <div><span className="text-yellow-600 font-medium">En cours:</span> {new Date(report.date_en_cours).toLocaleDateString('fr-FR')}</div>
+                    )}
+                    {report.date_termine && (
+                      <div><span className="text-green-600 font-medium">Terminé:</span> {new Date(report.date_termine).toLocaleDateString('fr-FR')}</div>
+                    )}
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {parsePhotos(report.photo_url).length > 0 ? (
+                    <button
+                      onClick={() => setShowPhotosModal(report)}
+                      className="inline-flex items-center text-blue-600 hover:text-blue-800"
+                    >
+                      <Image className="w-4 h-4 mr-1" />
+                      {parsePhotos(report.photo_url).length} photo(s)
+                    </button>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </td>
                 {isManager && (
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm space-x-2">
@@ -496,6 +540,48 @@ function Reports() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Photos */}
+      {showPhotosModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-xl font-semibold">
+                Photos du signalement #{showPhotosModal.id}
+              </h2>
+              <button onClick={() => setShowPhotosModal(null)} className="text-gray-500 hover:text-gray-700">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="p-6">
+              {parsePhotos(showPhotosModal.photo_url).length > 0 ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                  {parsePhotos(showPhotosModal.photo_url).map((photoUrl, index) => (
+                    <a
+                      key={index}
+                      href={photoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="block aspect-square overflow-hidden rounded-lg border hover:opacity-90 transition-opacity"
+                    >
+                      <img
+                        src={photoUrl}
+                        alt={`Photo ${index + 1}`}
+                        className="w-full h-full object-cover"
+                        onError={(e) => {
+                          e.target.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><text y=".9em" font-size="90">🖼️</text></svg>';
+                        }}
+                      />
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-center text-gray-500 py-8">Aucune photo disponible</p>
+              )}
+            </div>
           </div>
         </div>
       )}

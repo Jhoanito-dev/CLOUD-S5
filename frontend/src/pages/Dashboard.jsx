@@ -9,6 +9,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 function Dashboard() {
   const [stats, setStats] = useState(null);
+  const [delays, setDelays] = useState(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -17,8 +18,12 @@ function Dashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get('/api/stats');
-      setStats(response.data);
+      const [statsRes, delaysRes] = await Promise.all([
+        api.get('/api/stats'),
+        api.get('/api/stats/delays'),
+      ]);
+      setStats(statsRes.data);
+      setDelays(delaysRes.data);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -138,6 +143,28 @@ function Dashboard() {
           </div>
         </div>
       </div>
+
+      {/* Statistiques de délai moyen */}
+      {delays && delays.total_completed > 0 && (
+        <div className="bg-white rounded-lg shadow p-6">
+          <h3 className="text-lg font-semibold mb-4">📊 Délai moyen de traitement</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-red-50 rounded-lg text-center">
+              <p className="text-sm text-gray-600">Nouveau → En cours</p>
+              <p className="text-2xl font-bold text-red-700">{delays.avg_delay_nouveau_en_cours} jours</p>
+            </div>
+            <div className="p-4 bg-yellow-50 rounded-lg text-center">
+              <p className="text-sm text-gray-600">En cours → Terminé</p>
+              <p className="text-2xl font-bold text-yellow-700">{delays.avg_delay_en_cours_termine} jours</p>
+            </div>
+            <div className="p-4 bg-green-50 rounded-lg text-center">
+              <p className="text-sm text-gray-600">Traitement total</p>
+              <p className="text-2xl font-bold text-green-700">{delays.avg_delay_total} jours</p>
+            </div>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">Basé sur {delays.total_completed} signalement(s) terminé(s)</p>
+        </div>
+      )}
     </div>
   );
 }

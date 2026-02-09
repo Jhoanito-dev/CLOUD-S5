@@ -143,6 +143,14 @@ function MapView() {
                       {report.surface && <p><strong>Surface:</strong> {report.surface.toLocaleString('fr-FR')} m²</p>}
                       {report.budget && <p><strong>Budget:</strong> {report.budget.toLocaleString('fr-FR')} Ar</p>}
                       {report.company && <p><strong>Entreprise:</strong> {report.company}</p>}
+                      {(report.date_nouveau || report.date_en_cours || report.date_termine) && (
+                        <div className="mt-1 pt-1 border-t border-dashed">
+                          <p className="font-semibold text-xs text-gray-500 mb-0.5">Historique :</p>
+                          {report.date_nouveau && <p className="text-xs"><span className="text-red-600">●</span> Nouveau: {new Date(report.date_nouveau).toLocaleDateString('fr-FR')}</p>}
+                          {report.date_en_cours && <p className="text-xs"><span className="text-yellow-600">●</span> En cours: {new Date(report.date_en_cours).toLocaleDateString('fr-FR')}</p>}
+                          {report.date_termine && <p className="text-xs"><span className="text-green-600">●</span> Terminé: {new Date(report.date_termine).toLocaleDateString('fr-FR')}</p>}
+                        </div>
+                      )}
                       {report.description && (
                         <p className="mt-2 text-gray-600">{report.description}</p>
                       )}
