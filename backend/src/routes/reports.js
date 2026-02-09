@@ -465,10 +465,35 @@ router.patch('/:id/status', authenticateToken, requireRole('manager'), [
 
       // Envoyer une notification push à l'utilisateur qui a créé le signalement
       try {
-        // Récupérer le user_uid du créateur du report
-        const userResult = await db.query('SELECT uid FROM users WHERE id = $1', [report.user_id]);
-        if (userResult.rows.length > 0) {
-          await sendStatusChangeNotification(userResult.rows[0].uid, report.id, status);
+        let targetUserUid = null;
+
+        // D'abord essayer via PostgreSQL (user_id)
+        if (report.user_id) {
+          const userResult = await db.query('SELECT uid FROM users WHERE id = $1', [report.user_id]);
+          if (userResult.rows.length > 0) {
+            targetUserUid = userResult.rows[0].uid;
+          }
+        }
+
+        // Sinon chercher le user_uid dans le document Firestore
+        if (!targetUserUid && report.uid) {
+          try {
+            const firestore = getFirestore();
+            if (firestore) {
+              const firestoreDoc = await firestore.collection('reports').doc(report.uid).get();
+              if (firestoreDoc.exists) {
+                targetUserUid = firestoreDoc.data().user_uid;
+              }
+            }
+          } catch (e) {
+            console.log('⚠️ Could not get user_uid from Firestore:', e.message);
+          }
+        }
+
+        if (targetUserUid) {
+          await sendStatusChangeNotification(targetUserUid, report.id, status);
+        } else {
+          console.log('⚠️ No user_uid found for report, cannot send notification');
         }
       } catch (notifError) {
         console.error('⚠️ Push notification error (non-blocking):', notifError.message);
