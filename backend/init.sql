@@ -85,6 +85,19 @@ CREATE TABLE sync_log (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Settings table (key-value configuration)
+CREATE TABLE settings (
+    key VARCHAR(100) PRIMARY KEY,
+    value TEXT NOT NULL,
+    description TEXT,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Insert default settings
+INSERT INTO settings (key, value, description) VALUES
+    ('prix_par_m2', '50000', 'Prix par mètre carré pour le calcul du budget (en Ariary)')
+ON CONFLICT (key) DO NOTHING;
+
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_uid ON users(uid);

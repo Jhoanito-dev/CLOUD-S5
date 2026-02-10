@@ -10,6 +10,7 @@ const statsRoutes = require('./routes/stats');
 const syncRoutes = require('./routes/sync');
 const photosRoutes = require('./routes/photos');
 const configRoutes = require('./routes/config');
+const settingsRoutes = require('./routes/settings');
 
 const { errorHandler } = require('./middleware/errorHandler');
 const { createProxyMiddleware } = require('http-proxy-middleware');
@@ -48,6 +49,7 @@ app.use('/api/stats', statsRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/photos', photosRoutes);
 app.use('/api/config', configRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

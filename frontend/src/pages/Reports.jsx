@@ -42,12 +42,14 @@ function Reports() {
     surface: '',
     budget: '',
     company: '',
+    niveau: '',
   });
   const [editFormData, setEditFormData] = useState({
     description: '',
     surface: '',
     budget: '',
     company: '',
+    niveau: '',
   });
 
   const isManager = user?.role === 'manager';
@@ -121,6 +123,7 @@ function Reports() {
       surface: report.surface || '',
       budget: report.budget || '',
       company: report.company || '',
+      niveau: report.niveau || '',
     });
     setShowEditModal(true);
   };
@@ -135,6 +138,7 @@ function Reports() {
         surface: editFormData.surface ? parseFloat(editFormData.surface) : null,
         budget: editFormData.budget ? parseFloat(editFormData.budget) : null,
         company: editFormData.company,
+        niveau: editFormData.niveau ? parseInt(editFormData.niveau) : null,
       });
       setShowEditModal(false);
       setEditingReport(null);
@@ -155,10 +159,11 @@ function Reports() {
         ...formData,
         surface: formData.surface ? parseFloat(formData.surface) : null,
         budget: formData.budget ? parseFloat(formData.budget) : null,
+        niveau: formData.niveau ? parseInt(formData.niveau) : null,
       });
       setShowModal(false);
       setPosition(null);
-      setFormData({ description: '', surface: '', budget: '', company: '' });
+      setFormData({ description: '', surface: '', budget: '', company: '', niveau: '' });
       fetchReports();
     } catch (error) {
       console.error('Error creating report:', error);
@@ -246,6 +251,9 @@ function Reports() {
               >
                 Statut <SortIcon column="status" />
               </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Niveau
+              </th>
               <th 
                 onClick={() => handleSort('surface')}
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase cursor-pointer hover:bg-gray-100"
@@ -285,6 +293,9 @@ function Reports() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   {getStatusBadge(report.status)}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {report.niveau ? <span className="font-semibold">{report.niveau}/10</span> : '-'}
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {report.surface?.toLocaleString('fr-FR') || '-'}
@@ -461,6 +472,19 @@ function Reports() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
                 />
               </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Niveau de dégradation (1-10)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={formData.niveau}
+                  onChange={(e) => setFormData(prev => ({ ...prev, niveau: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  placeholder="1 = faible, 10 = très dégradé"
+                />
+                <p className="text-xs text-gray-500 mt-1">Le budget sera calculé automatiquement si niveau et surface sont renseignés</p>
+              </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button
                   type="button"
@@ -554,6 +578,19 @@ function Reports() {
                   onChange={(e) => setEditFormData(prev => ({ ...prev, company: e.target.value }))}
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Niveau de dégradation (1-10)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="10"
+                  value={editFormData.niveau}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, niveau: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  placeholder="1 = faible, 10 = très dégradé"
+                />
+                <p className="text-xs text-gray-500 mt-1">Budget recalculé auto si niveau/surface changent</p>
               </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button

@@ -218,6 +218,18 @@ router.post('/', authenticateToken, [
 
     const { latitude, longitude, description, surface, budget, company, photo_url, niveau } = req.body;
     
+    // Auto-calculate budget if niveau and surface are provided and budget is not
+    let finalBudget = budget;
+    if (niveau && surface && !budget) {
+      try {
+        const settingsResult = await db.query("SELECT value FROM settings WHERE key = 'prix_par_m2'");
+        const prixParM2 = settingsResult.rows.length > 0 ? parseFloat(settingsResult.rows[0].value) : 50000;
+        finalBudget = prixParM2 * niveau * surface;
+      } catch (e) {
+        console.warn('Could not auto-calculate budget:', e.message);
+      }
+    }
+    
     let reportUid = null;
     
     // First, create in Firestore to get the document ID
@@ -230,7 +242,7 @@ router.post('/', authenticateToken, [
             longitude,
             description: description || '',
             surface: surface || null,
-            budget: budget || null,
+            budget: finalBudget || null,
             company: company || '',
             niveau: niveau || null,
             status: 'new',
@@ -255,7 +267,7 @@ router.post('/', authenticateToken, [
       `INSERT INTO reports (uid, user_id, latitude, longitude, description, surface, budget, company, photo_url, niveau, firebase_synced, date_nouveau)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [reportUid, req.user.id, latitude, longitude, description, surface, budget, company, photo_url, niveau, isFirebaseAvailable()]
+      [reportUid, req.user.id, latitude, longitude, description, surface, finalBudget, company, photo_url, niveau, isFirebaseAvailable()]
     );
 
     res.status(201).json({
@@ -321,6 +333,26 @@ router.put('/:id', authenticateToken, requireRole('manager'), [
 
     const { description, surface, budget, company, niveau } = req.body;
 
+    // Auto-recalculate budget if niveau or surface changed (and budget not explicitly set)
+    let autoRecalcBudget = undefined;
+    if ((niveau !== undefined || surface !== undefined) && budget === undefined) {
+      try {
+        // Get the current report values
+        const currentReport = await db.query('SELECT surface, niveau FROM reports WHERE id = $1 AND is_deleted = false', [req.params.id]);
+        if (currentReport.rows.length > 0) {
+          const finalNiveau = niveau !== undefined ? niveau : currentReport.rows[0].niveau;
+          const finalSurface = surface !== undefined ? surface : parseFloat(currentReport.rows[0].surface);
+          if (finalNiveau && finalSurface) {
+            const settingsResult = await db.query("SELECT value FROM settings WHERE key = 'prix_par_m2'");
+            const prixParM2 = settingsResult.rows.length > 0 ? parseFloat(settingsResult.rows[0].value) : 50000;
+            autoRecalcBudget = prixParM2 * finalNiveau * finalSurface;
+          }
+        }
+      } catch (e) {
+        console.warn('Could not auto-recalculate budget:', e.message);
+      }
+    }
+
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -338,6 +370,10 @@ router.put('/:id', authenticateToken, requireRole('manager'), [
     if (budget !== undefined) {
       updates.push(`budget = $${paramCount}`);
       values.push(budget);
+      paramCount++;
+    } else if (autoRecalcBudget !== undefined) {
+      updates.push(`budget = $${paramCount}`);
+      values.push(autoRecalcBudget);
       paramCount++;
     }
     if (company !== undefined) {

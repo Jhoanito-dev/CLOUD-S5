@@ -140,6 +140,7 @@ function MapView() {
                           {getStatusLabel(report.status)}
                         </span>
                       </p>
+                      {report.niveau && <p><strong>Niveau:</strong> <span className="font-semibold">{report.niveau}/10</span></p>}
                       {report.surface && <p><strong>Surface:</strong> {report.surface.toLocaleString('fr-FR')} m²</p>}
                       {report.budget && <p><strong>Budget:</strong> {report.budget.toLocaleString('fr-FR')} Ar</p>}
                       {report.company && <p><strong>Entreprise:</strong> {report.company}</p>}
