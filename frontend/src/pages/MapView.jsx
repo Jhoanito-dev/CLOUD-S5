@@ -117,11 +117,11 @@ function MapView() {
               url={tileUrl}
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
             />
-            {reports.map((report) => (
+            {reports.filter((report) => report.latitude != null && report.longitude != null && !isNaN(parseFloat(report.latitude)) && !isNaN(parseFloat(report.longitude))).map((report) => (
               <Marker
                 key={report.id}
                 position={[parseFloat(report.latitude), parseFloat(report.longitude)]}
-                icon={icons[report.status]}
+                icon={icons[report.status] || icons['new']}
               >
                 <Popup>
                   <div className="min-w-48">

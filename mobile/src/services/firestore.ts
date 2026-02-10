@@ -79,12 +79,7 @@ export const getReports = async (limitCount: number = 100): Promise<Report[]> =>
 // Get reports by user
 export const getReportsByUser = async (userUid: string, limitCount: number = 100): Promise<Report[]> => {
   try {
-    console.log('Fetching reports for user:', userUid);
     const reportsRef = collection(db, 'reports');
-    
-    // First, let's see all reports to debug
-    const allDocs = await getDocs(collection(db, 'reports'));
-    console.log('DEBUG: All reports user_uids:', allDocs.docs.map(d => d.data().user_uid));
     
     // Simple query without orderBy to avoid index requirement
     // We'll sort client-side
@@ -100,11 +95,10 @@ export const getReportsByUser = async (userUid: string, limitCount: number = 100
       ...doc.data()
     } as Report));
     
-    // Sort client-side by created_at (descending)
+    // Sort client-side by created_at (descending) - supports both Timestamp and Date
     reports.sort((a, b) => {
-      const dateA = a.created_at?.seconds || 0;
-      const dateB = b.created_at?.seconds || 0;
-      return dateB - dateA;
+      const getTime = (d: any) => d?.seconds ? d.seconds * 1000 : d instanceof Date ? d.getTime() : 0;
+      return getTime(b.created_at) - getTime(a.created_at);
     });
     
     console.log('Found', reports.length, 'reports for user', userUid);

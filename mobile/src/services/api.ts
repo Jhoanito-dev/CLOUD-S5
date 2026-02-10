@@ -17,4 +17,16 @@ export const setAuthToken = (token: string | null) => {
   }
 };
 
+// Intercepteur pour gérer les sessions expirées (401)
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear stored token on auth failure
+      setAuthToken(null);
+    }
+    return Promise.reject(error);
+  }
+);
+
 export default api;
