@@ -37,17 +37,16 @@ function Reports() {
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState('');
   const [position, setPosition] = useState(null);
+  const [prixParM2, setPrixParM2] = useState(0);
   const [formData, setFormData] = useState({
     description: '',
     surface: '',
-    budget: '',
     company: '',
     niveau: '',
   });
   const [editFormData, setEditFormData] = useState({
     description: '',
     surface: '',
-    budget: '',
     company: '',
     niveau: '',
   });
@@ -57,6 +56,25 @@ function Reports() {
   useEffect(() => {
     fetchReports();
   }, [pagination.page, pagination.limit, sortConfig, statusFilter]);
+
+  useEffect(() => {
+    const fetchPrix = async () => {
+      try {
+        const res = await api.get('/api/settings/prix_par_m2');
+        setPrixParM2(parseFloat(res.data.value) || 0);
+      } catch (err) {
+        console.error('Error fetching prix_par_m2:', err);
+      }
+    };
+    fetchPrix();
+  }, []);
+
+  const calculatedBudget = (surface, niveau) => {
+    const s = parseFloat(surface);
+    const n = parseInt(niveau);
+    if (s > 0 && n > 0 && prixParM2 > 0) return prixParM2 * n * s;
+    return null;
+  };
 
   const fetchReports = async () => {
     try {
@@ -121,7 +139,6 @@ function Reports() {
     setEditFormData({
       description: report.description || '',
       surface: report.surface || '',
-      budget: report.budget || '',
       company: report.company || '',
       niveau: report.niveau || '',
     });
@@ -136,7 +153,6 @@ function Reports() {
       await api.put(`/api/reports/${editingReport.id}`, {
         description: editFormData.description,
         surface: editFormData.surface ? parseFloat(editFormData.surface) : null,
-        budget: editFormData.budget ? parseFloat(editFormData.budget) : null,
         company: editFormData.company,
         niveau: editFormData.niveau ? parseInt(editFormData.niveau) : null,
       });
@@ -158,12 +174,11 @@ function Reports() {
         longitude: position[1],
         ...formData,
         surface: formData.surface ? parseFloat(formData.surface) : null,
-        budget: formData.budget ? parseFloat(formData.budget) : null,
         niveau: formData.niveau ? parseInt(formData.niveau) : null,
       });
       setShowModal(false);
       setPosition(null);
-      setFormData({ description: '', surface: '', budget: '', company: '', niveau: '' });
+      setFormData({ description: '', surface: '', company: '', niveau: '' });
       fetchReports();
     } catch (error) {
       console.error('Error creating report:', error);
@@ -443,25 +458,14 @@ function Reports() {
                   rows="3"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Surface (m²)</label>
-                  <input
-                    type="number"
-                    value={formData.surface}
-                    onChange={(e) => setFormData(prev => ({ ...prev, surface: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Budget (Ar)</label>
-                  <input
-                    type="number"
-                    value={formData.budget}
-                    onChange={(e) => setFormData(prev => ({ ...prev, budget: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Surface (m²)</label>
+                <input
+                  type="number"
+                  value={formData.surface}
+                  onChange={(e) => setFormData(prev => ({ ...prev, surface: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Entreprise</label>
@@ -483,7 +487,14 @@ function Reports() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
                   placeholder="1 = faible, 10 = très dégradé"
                 />
-                <p className="text-xs text-gray-500 mt-1">Le budget sera calculé automatiquement si niveau et surface sont renseignés</p>
+                {calculatedBudget(formData.surface, formData.niveau) !== null ? (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800 font-medium">💰 Budget estimé : {calculatedBudget(formData.surface, formData.niveau).toLocaleString()} Ar</p>
+                    <p className="text-xs text-blue-600">{prixParM2.toLocaleString()} Ar/m² × {formData.niveau} (niveau) × {formData.surface} m²</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">Le budget sera calculé automatiquement si niveau et surface sont renseignés</p>
+                )}
               </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button
@@ -550,25 +561,14 @@ function Reports() {
                   rows="3"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Surface (m²)</label>
-                  <input
-                    type="number"
-                    value={editFormData.surface}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, surface: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Budget (Ar)</label>
-                  <input
-                    type="number"
-                    value={editFormData.budget}
-                    onChange={(e) => setEditFormData(prev => ({ ...prev, budget: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Surface (m²)</label>
+                <input
+                  type="number"
+                  value={editFormData.surface}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, surface: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Entreprise</label>
@@ -590,7 +590,14 @@ function Reports() {
                   className="w-full border border-gray-300 rounded-md px-3 py-2"
                   placeholder="1 = faible, 10 = très dégradé"
                 />
-                <p className="text-xs text-gray-500 mt-1">Budget recalculé auto si niveau/surface changent</p>
+                {calculatedBudget(editFormData.surface, editFormData.niveau) !== null ? (
+                  <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <p className="text-sm text-blue-800 font-medium">💰 Budget estimé : {calculatedBudget(editFormData.surface, editFormData.niveau).toLocaleString()} Ar</p>
+                    <p className="text-xs text-blue-600">{prixParM2.toLocaleString()} Ar/m² × {editFormData.niveau} (niveau) × {editFormData.surface} m²</p>
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-500 mt-1">Budget recalculé auto si niveau/surface changent</p>
+                )}
               </div>
               <div className="flex justify-end space-x-3 pt-4">
                 <button

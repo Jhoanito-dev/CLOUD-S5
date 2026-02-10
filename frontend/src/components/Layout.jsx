@@ -59,7 +59,7 @@ function Layout() {
                   🛣️ Travaux Routiers
                 </Link>
               </div>
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-4">
+              <div className="hidden sm:ml-6 sm:flex sm:space-x-1 sm:flex-wrap sm:items-center">
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
@@ -67,13 +67,14 @@ function Layout() {
                     <Link
                       key={item.path}
                       to={item.path}
-                      className={`inline-flex items-center px-3 py-2 text-sm font-medium rounded-md ${
+                      title={item.label}
+                      className={`inline-flex items-center px-2 py-1.5 text-xs font-medium rounded-md whitespace-nowrap ${
                         isActive
                           ? 'text-blue-600 bg-blue-50'
                           : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                       }`}
                     >
-                      <Icon className="w-4 h-4 mr-2" />
+                      <Icon className="w-4 h-4 mr-1" />
                       {item.label}
                     </Link>
                   );

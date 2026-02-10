@@ -20,19 +20,6 @@ services:
       timeout: 5s
       retries: 10
 
-  # TileServer for offline maps (optionnel - nécessite antananarivo.mbtiles)
-  tileserver:
-    image: maptiler/tileserver-gl:latest
-    container_name: cloud_tileserver
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./data:/data
-    command: --config /data/config.json
-    networks:
-      - cloud_network
-    restart: on-failure
-
   # Backend API Node.js
   backend:
     build:
