@@ -122,3 +122,17 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users
 DROP TRIGGER IF EXISTS update_reports_updated_at ON reports;
 CREATE TRIGGER update_reports_updated_at BEFORE UPDATE ON reports
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Settings history table to store application-wide configuration changes (with timestamp)
+DROP TABLE IF EXISTS settings_history CASCADE;
+CREATE TABLE settings_history (
+    id SERIAL PRIMARY KEY,
+    key VARCHAR(100) NOT NULL,
+    value TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_settings_history_key ON settings_history(key);
+
+-- Default price per m2 (historical entry)
+INSERT INTO settings_history (key, value) VALUES ('price_per_m2', '1000');
