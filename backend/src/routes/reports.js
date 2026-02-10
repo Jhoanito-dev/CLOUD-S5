@@ -438,6 +438,7 @@ router.put('/:id', authenticateToken, requireRole('manager'), [
  */
 router.patch('/:id/status', authenticateToken, requireRole('manager'), [
   body('status').isIn(['new', 'in_progress', 'done']).withMessage('Invalid status'),
+  body('repair_level').optional().isInt({ min: 1, max: 10 }).withMessage('Repair level must be between 1 and 10'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -445,7 +446,7 @@ router.patch('/:id/status', authenticateToken, requireRole('manager'), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { status } = req.body;
+    const { status, repair_level } = req.body;
 
     // Déterminer la colonne de date à mettre à jour selon le statut
     let dateColumn = '';
@@ -453,10 +454,18 @@ router.patch('/:id/status', authenticateToken, requireRole('manager'), [
     else if (status === 'in_progress') dateColumn = ', date_en_cours = CURRENT_TIMESTAMP, date_termine = NULL';
     else if (status === 'done') dateColumn = ', date_termine = CURRENT_TIMESTAMP';
 
+    // Ajouter le repair_level si fourni
+    let repairLevelUpdate = '';
+    const params = [status, req.params.id];
+    if (repair_level !== undefined && repair_level !== null) {
+      repairLevelUpdate = ', niveau = $3';
+      params.push(repair_level);
+    }
+
     // Update in PostgreSQL and get the uid (which is the Firestore doc ID)
     const result = await db.query(
-      `UPDATE reports SET status = $1${dateColumn} WHERE id = $2 AND is_deleted = false RETURNING *`,
-      [status, req.params.id]
+      `UPDATE reports SET status = $1${dateColumn}${repairLevelUpdate} WHERE id = $2 AND is_deleted = false RETURNING *`,
+      params
     );
 
     if (result.rows.length === 0) {
@@ -471,10 +480,14 @@ router.patch('/:id/status', authenticateToken, requireRole('manager'), [
         const firestore = getFirestore();
         if (firestore) {
           // The uid in PostgreSQL is the Firestore document ID
-          await firestore.collection('reports').doc(report.uid).update({
+          const firestoreUpdate = {
             status: status,
             updated_at: admin.firestore.FieldValue.serverTimestamp()
-          });
+          };
+          if (repair_level !== undefined && repair_level !== null) {
+            firestoreUpdate.niveau = repair_level;
+          }
+          await firestore.collection('reports').doc(report.uid).update(firestoreUpdate);
           console.log(`✅ Status synced to Firestore for report ${report.uid}: ${status}`);
         }
       } catch (firestoreError) {

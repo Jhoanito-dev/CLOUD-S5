@@ -31,6 +31,8 @@ function Reports() {
   const [editingReport, setEditingReport] = useState(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(null);
   const [showPhotosModal, setShowPhotosModal] = useState(null);
+  const [showStatusModal, setShowStatusModal] = useState(null);
+  const [statusModalData, setStatusModalData] = useState({ status: '', repair_level: '' });
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
   const [sortConfig, setSortConfig] = useState({ key: 'created_at', direction: 'desc' });
   const [statusFilter, setStatusFilter] = useState('');
@@ -81,9 +83,21 @@ function Reports() {
     }));
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const openStatusModal = (report, newStatus) => {
+    setShowStatusModal(report);
+    setStatusModalData({ status: newStatus, repair_level: report.niveau || '' });
+  };
+
+  const handleStatusChange = async (e) => {
+    e.preventDefault();
+    if (!showStatusModal) return;
     try {
-      await api.patch(`/api/reports/${id}/status`, { status: newStatus });
+      const payload = { status: statusModalData.status };
+      if (statusModalData.repair_level !== '' && statusModalData.repair_level !== null) {
+        payload.repair_level = parseInt(statusModalData.repair_level);
+      }
+      await api.patch(`/api/reports/${showStatusModal.id}/status`, payload);
+      setShowStatusModal(null);
       fetchReports();
     } catch (error) {
       console.error('Error updating status:', error);
@@ -248,6 +262,9 @@ function Reports() {
                 Entreprise
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                Niveau réparation
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                 Dates étapes
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
@@ -277,6 +294,20 @@ function Reports() {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                   {report.company || '-'}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  {report.niveau ? (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      report.niveau <= 3 ? 'bg-green-100 text-green-800' :
+                      report.niveau <= 6 ? 'bg-yellow-100 text-yellow-800' :
+                      report.niveau <= 8 ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {report.niveau}/10
+                    </span>
+                  ) : (
+                    <span className="text-gray-400">-</span>
+                  )}
                 </td>
                 <td className="px-6 py-4 text-xs text-gray-500">
                   <div className="space-y-0.5">
@@ -315,7 +346,7 @@ function Reports() {
                     </button>
                     {report.status !== 'in_progress' && (
                       <button
-                        onClick={() => handleStatusChange(report.id, 'in_progress')}
+                        onClick={() => openStatusModal(report, 'in_progress')}
                         className="text-yellow-600 hover:text-yellow-800"
                       >
                         En cours
@@ -323,7 +354,7 @@ function Reports() {
                     )}
                     {report.status !== 'done' && (
                       <button
-                        onClick={() => handleStatusChange(report.id, 'done')}
+                        onClick={() => openStatusModal(report, 'done')}
                         className="text-green-600 hover:text-green-800"
                       >
                         Terminé
@@ -537,6 +568,79 @@ function Reports() {
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
                 >
                   Enregistrer
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Changement de statut */}
+      {showStatusModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
+            <div className="flex justify-between items-center p-4 border-b">
+              <h2 className="text-xl font-semibold">
+                Changer le statut — Signalement #{showStatusModal.id}
+              </h2>
+              <button onClick={() => setShowStatusModal(null)} className="text-gray-500 hover:text-gray-700">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <form onSubmit={handleStatusChange} className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau statut</label>
+                <select
+                  value={statusModalData.status}
+                  onChange={(e) => setStatusModalData(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="new">Nouveau</option>
+                  <option value="in_progress">En cours</option>
+                  <option value="done">Terminé</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Niveau de réparation
+                  {statusModalData.repair_level && (
+                    <span className={`ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                      statusModalData.repair_level <= 3 ? 'bg-green-100 text-green-800' :
+                      statusModalData.repair_level <= 6 ? 'bg-yellow-100 text-yellow-800' :
+                      statusModalData.repair_level <= 8 ? 'bg-orange-100 text-orange-800' :
+                      'bg-red-100 text-red-800'
+                    }`}>
+                      {statusModalData.repair_level}/10
+                    </span>
+                  )}
+                </label>
+                <input
+                  type="range"
+                  min="1"
+                  max="10"
+                  value={statusModalData.repair_level || 1}
+                  onChange={(e) => setStatusModalData(prev => ({ ...prev, repair_level: parseInt(e.target.value) }))}
+                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                />
+                <div className="flex justify-between text-xs text-gray-400 mt-1">
+                  <span>1 — Mineur</span>
+                  <span>5 — Moyen</span>
+                  <span>10 — Critique</span>
+                </div>
+              </div>
+              <div className="flex justify-end space-x-3 pt-4 border-t">
+                <button
+                  type="button"
+                  onClick={() => setShowStatusModal(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                >
+                  Confirmer
                 </button>
               </div>
             </form>

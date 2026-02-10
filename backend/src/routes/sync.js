@@ -50,8 +50,8 @@ router.get('/firebase', authenticateToken, requireRole('manager'), async (req, r
         if (existing.rows.length === 0) {
           // Insert new report
           await db.query(
-            `INSERT INTO reports (uid, latitude, longitude, description, surface, budget, company, status, firebase_synced, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, true, $9)`,
+            `INSERT INTO reports (uid, latitude, longitude, description, surface, budget, company, status, niveau, firebase_synced, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, true, $10)`,
             [
               doc.id,
               data.latitude,
@@ -61,6 +61,7 @@ router.get('/firebase', authenticateToken, requireRole('manager'), async (req, r
               data.budget,
               data.company,
               data.status || 'new',
+              data.niveau || null,
               data.created_at ? new Date(data.created_at._seconds * 1000) : new Date(),
             ]
           );
@@ -71,9 +72,9 @@ router.get('/firebase', authenticateToken, requireRole('manager'), async (req, r
             `UPDATE reports SET 
               latitude = $1, longitude = $2, description = $3, 
               surface = $4, budget = $5, company = $6, 
-              firebase_synced = true
-             WHERE uid = $7`,
-            [data.latitude, data.longitude, data.description, data.surface, data.budget, data.company, doc.id]
+              niveau = $7, firebase_synced = true
+             WHERE uid = $8`,
+            [data.latitude, data.longitude, data.description, data.surface, data.budget, data.company, data.niveau || null, doc.id]
           );
           updated++;
         }
@@ -149,6 +150,7 @@ router.post('/to-firebase', authenticateToken, requireRole('manager'), async (re
           budget: report.budget,
           company: report.company,
           status: report.status,
+          niveau: report.niveau || null,
           user_id: report.user_id,
           created_at: admin.firestore.Timestamp.fromDate(new Date(report.created_at)),
           updated_at: admin.firestore.Timestamp.fromDate(new Date(report.updated_at)),
