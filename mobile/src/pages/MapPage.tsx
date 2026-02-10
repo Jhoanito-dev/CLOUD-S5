@@ -19,6 +19,7 @@ import { Geolocation } from '@capacitor/geolocation';
 import { Camera, CameraResultType, CameraSource, Photo } from '@capacitor/camera';
 import { useAuth } from '../context/AuthContext';
 import { getReports, addReport, subscribeToReports, Report as FirestoreReport, db } from '../services/firestore';
+import api from '../services/api';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import 'leaflet/dist/leaflet.css';
@@ -106,10 +107,10 @@ const MapPage: React.FC = () => {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [flyToPosition, setFlyToPosition] = useState<[number, number] | null>(null);
   const [locating, setLocating] = useState(false);
+  const [prixParM2, setPrixParM2] = useState(0);
   const [formData, setFormData] = useState({
     description: '',
     surface: '',
-    budget: '',
     company: '',
     niveau: '',
   });
@@ -192,6 +193,20 @@ const MapPage: React.FC = () => {
     
     return urls;
   };
+
+  // Fetch prix_par_m2 from backend settings
+  useEffect(() => {
+    const fetchPrix = async () => {
+      try {
+        const res = await api.get('/api/settings/prix_par_m2');
+        setPrixParM2(parseFloat(res.data.value) || 0);
+        console.log('prix_par_m2 loaded:', res.data.value);
+      } catch (err) {
+        console.error('Error fetching prix_par_m2:', err);
+      }
+    };
+    fetchPrix();
+  }, []);
 
   useEffect(() => {
     // Subscribe to real-time updates from Firestore
@@ -328,15 +343,20 @@ const MapPage: React.FC = () => {
     try {
       setUploadingPhotos(true);
       
+      // Auto-calculate budget: prix_par_m2 × niveau × surface
+      const surface = formData.surface ? parseFloat(formData.surface) : null;
+      const niveau = formData.niveau ? parseInt(formData.niveau) : null;
+      const autoBudget = (surface && niveau && prixParM2 > 0) ? prixParM2 * niveau * surface : null;
+
       // Add report directly to Firestore
       const reportId = await addReport({
         latitude: selectedPosition[0],
         longitude: selectedPosition[1],
         description: formData.description,
-        surface: formData.surface ? parseFloat(formData.surface) : null,
-        budget: formData.budget ? parseFloat(formData.budget) : null,
+        surface: surface,
+        budget: autoBudget,
         company: formData.company,
-        niveau: formData.niveau ? parseInt(formData.niveau) : null,
+        niveau: niveau,
         status: 'new',
         user_uid: user.uid,
         user_email: user.email || '',
@@ -374,7 +394,7 @@ const MapPage: React.FC = () => {
 
         setShowModal(false);
         setSelectedPosition(null);
-        setFormData({ description: '', surface: '', budget: '', company: '', niveau: '' });
+        setFormData({ description: '', surface: '', company: '', niveau: '' });
         setPhotos([]);
         // No need to fetch - subscribeToReports will auto-update
       } else {
@@ -682,24 +702,6 @@ const MapPage: React.FC = () => {
 
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500, color: '#374151' }}>
-                    Budget (Ar)
-                  </label>
-                  <input
-                    type="number"
-                    value={formData.budget}
-                    onChange={(e) => setFormData({ ...formData, budget: e.target.value })}
-                    style={{
-                      width: '100%',
-                      padding: '10px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '6px',
-                      fontSize: '14px',
-                    }}
-                  />
-                </div>
-
-                <div style={{ marginBottom: '16px' }}>
-                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500, color: '#374151' }}>
                     Entreprise
                   </label>
                   <input
@@ -735,9 +737,29 @@ const MapPage: React.FC = () => {
                       fontSize: '14px',
                     }}
                   />
+                  {formData.surface && formData.niveau && prixParM2 > 0 ? (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '10px',
+                      backgroundColor: '#eff6ff',
+                      border: '1px solid #bfdbfe',
+                      borderRadius: '6px',
+                    }}>
+                      <p style={{ margin: 0, fontSize: '14px', fontWeight: 600, color: '#1e40af' }}>
+                        💰 Budget estimé : {(prixParM2 * parseInt(formData.niveau) * parseFloat(formData.surface)).toLocaleString()} Ar
+                      </p>
+                      <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#3b82f6' }}>
+                        {prixParM2.toLocaleString()} Ar/m² × {formData.niveau} (niveau) × {formData.surface} m²
+                      </p>
+                    </div>
+                  ) : (
+                    <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#6b7280' }}>
+                      Le budget sera calculé automatiquement
+                    </p>
+                  )}
                 </div>
 
-                {/* Photos section */}
+                {/* Photos section */
                 <div style={{ marginBottom: '16px' }}>
                   <label style={{ display: 'block', marginBottom: '8px', fontWeight: 500, color: '#374151' }}>
                     Photos
