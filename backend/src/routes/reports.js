@@ -190,6 +190,11 @@ router.get('/:id', optionalAuth, async (req, res) => {
  *                 type: string
  *               photo_url:
  *                 type: string
+ *               niveau:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 10
+ *                 description: Niveau de dégradation (1-10)
  *     responses:
  *       201:
  *         description: Report created
@@ -203,6 +208,7 @@ router.post('/', authenticateToken, [
   body('surface').optional().isFloat({ min: 0 }).withMessage('Surface must be a positive number'),
   body('budget').optional().isFloat({ min: 0 }).withMessage('Budget must be a positive number'),
   body('company').optional().isString(),
+  body('niveau').optional().isInt({ min: 1, max: 10 }).withMessage('Niveau must be between 1 and 10'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -210,7 +216,7 @@ router.post('/', authenticateToken, [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { latitude, longitude, description, surface, budget, company, photo_url } = req.body;
+    const { latitude, longitude, description, surface, budget, company, photo_url, niveau } = req.body;
     
     let reportUid = null;
     
@@ -226,6 +232,7 @@ router.post('/', authenticateToken, [
             surface: surface || null,
             budget: budget || null,
             company: company || '',
+            niveau: niveau || null,
             status: 'new',
             user_uid: req.user.uid || '',
             user_email: req.user.email || '',
@@ -245,10 +252,10 @@ router.post('/', authenticateToken, [
 
     // Then create in PostgreSQL with the Firestore ID as uid
     const result = await db.query(
-      `INSERT INTO reports (uid, user_id, latitude, longitude, description, surface, budget, company, photo_url, firebase_synced, date_nouveau)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
+      `INSERT INTO reports (uid, user_id, latitude, longitude, description, surface, budget, company, photo_url, niveau, firebase_synced, date_nouveau)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, CURRENT_TIMESTAMP)
        RETURNING *`,
-      [reportUid, req.user.id, latitude, longitude, description, surface, budget, company, photo_url, isFirebaseAvailable()]
+      [reportUid, req.user.id, latitude, longitude, description, surface, budget, company, photo_url, niveau, isFirebaseAvailable()]
     );
 
     res.status(201).json({
@@ -290,6 +297,11 @@ router.post('/', authenticateToken, [
  *                 type: number
  *               company:
  *                 type: string
+ *               niveau:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 10
+ *                 description: Niveau de dégradation (1-10)
  *     responses:
  *       200:
  *         description: Report updated
@@ -299,6 +311,7 @@ router.post('/', authenticateToken, [
 router.put('/:id', authenticateToken, requireRole('manager'), [
   body('surface').optional().isFloat({ min: 0 }).withMessage('Surface must be a positive number'),
   body('budget').optional().isFloat({ min: 0 }).withMessage('Budget must be a positive number'),
+  body('niveau').optional().isInt({ min: 1, max: 10 }).withMessage('Niveau must be between 1 and 10'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -306,7 +319,7 @@ router.put('/:id', authenticateToken, requireRole('manager'), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { description, surface, budget, company } = req.body;
+    const { description, surface, budget, company, niveau } = req.body;
 
     const updates = [];
     const values = [];
@@ -330,6 +343,11 @@ router.put('/:id', authenticateToken, requireRole('manager'), [
     if (company !== undefined) {
       updates.push(`company = $${paramCount}`);
       values.push(company);
+      paramCount++;
+    }
+    if (niveau !== undefined) {
+      updates.push(`niveau = $${paramCount}`);
+      values.push(niveau);
       paramCount++;
     }
 
@@ -364,6 +382,7 @@ router.put('/:id', authenticateToken, requireRole('manager'), [
           if (surface !== undefined) firestoreUpdates.surface = surface;
           if (budget !== undefined) firestoreUpdates.budget = budget;
           if (company !== undefined) firestoreUpdates.company = company;
+          if (niveau !== undefined) firestoreUpdates.niveau = niveau;
           
           await firestore.collection('reports').doc(report.uid).update(firestoreUpdates);
           console.log(`✅ Report ${report.uid} synced to Firestore`);
