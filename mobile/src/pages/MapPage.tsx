@@ -38,6 +38,7 @@ interface Report {
   surface?: number | null;
   budget?: number | null;
   company?: string;
+  niveau?: number | null;
   status: string;
   created_at: any;
   photos?: string[];
@@ -110,6 +111,7 @@ const MapPage: React.FC = () => {
     surface: '',
     budget: '',
     company: '',
+    niveau: '',
   });
   const [photos, setPhotos] = useState<{ base64: string; format: string }[]>([]);
   const [showPhotoActionSheet, setShowPhotoActionSheet] = useState(false);
@@ -334,6 +336,7 @@ const MapPage: React.FC = () => {
         surface: formData.surface ? parseFloat(formData.surface) : null,
         budget: formData.budget ? parseFloat(formData.budget) : null,
         company: formData.company,
+        niveau: formData.niveau ? parseInt(formData.niveau) : null,
         status: 'new',
         user_uid: user.uid,
         user_email: user.email || '',
@@ -371,7 +374,7 @@ const MapPage: React.FC = () => {
 
         setShowModal(false);
         setSelectedPosition(null);
-        setFormData({ description: '', surface: '', budget: '', company: '' });
+        setFormData({ description: '', surface: '', budget: '', company: '', niveau: '' });
         setPhotos([]);
         // No need to fetch - subscribeToReports will auto-update
       } else {
@@ -472,6 +475,7 @@ const MapPage: React.FC = () => {
                     </p>
                     <p>{report.description || 'Aucune description'}</p>
                     {report.surface && <p>Surface: {report.surface} m²</p>}
+                    {report.niveau && <p>Niveau: <strong>{report.niveau}/10</strong></p>}
                     {report.budget && <p>Budget: {report.budget} Ar</p>}
                     {report.company && <p>Entreprise: {report.company}</p>}
                     {report.photos && report.photos.length > 0 && (
@@ -702,6 +706,27 @@ const MapPage: React.FC = () => {
                     type="text"
                     value={formData.company}
                     onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '6px',
+                      fontSize: '14px',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label style={{ display: 'block', marginBottom: '4px', fontWeight: 500, color: '#374151' }}>
+                    Niveau de dégradation (1-10)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="10"
+                    value={formData.niveau}
+                    onChange={(e) => setFormData({ ...formData, niveau: e.target.value })}
+                    placeholder="1 = faible, 10 = très dégradé"
                     style={{
                       width: '100%',
                       padding: '10px',

@@ -8,7 +8,8 @@ import {
   LogOut, 
   RefreshCw,
   Users,
-  UserX
+  UserX,
+  Settings
 } from 'lucide-react';
 import { useState } from 'react';
 import api from '../services/api';
@@ -44,6 +45,7 @@ function Layout() {
   if (user?.role === 'manager') {
     navItems.push({ path: '/users', icon: Users, label: 'Utilisateurs' });
     navItems.push({ path: '/blocked-users', icon: UserX, label: 'Débloquer' });
+    navItems.push({ path: '/settings', icon: Settings, label: 'Paramètres' });
   }
 
   return (

@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # PostgreSQL Database
   postgres:
@@ -16,8 +14,13 @@ services:
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
     networks:
       - cloud_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U clouduser -d roadworks"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
-  # TileServer for offline maps
+  # TileServer for offline maps (optionnel - nécessite antananarivo.mbtiles)
   tileserver:
     image: maptiler/tileserver-gl:latest
     container_name: cloud_tileserver
@@ -28,6 +31,7 @@ services:
     command: --config /data/config.json
     networks:
       - cloud_network
+    restart: on-failure
 
   # Backend API Node.js
   backend:
@@ -36,40 +40,42 @@ services:
       dockerfile: Dockerfile
     container_name: cloud_backend
     environment:
-      NODE_ENV: development
+      NODE_ENV: production
       PORT: 3000
       DATABASE_URL: postgres://clouduser:cloudpass@postgres:5432/roadworks
-      FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
-      FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
-      FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
-      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      TILESERVER_URL: http://tileserver:8080
+      JWT_SECRET: cloud-s5-p17-jwt-secret-key-2024
       MAX_LOGIN_ATTEMPTS: 3
       SESSION_DURATION: 3600
+      GOOGLE_APPLICATION_CREDENTIALS: /app/firebase-service-account.json
+      FIREBASE_PROJECT_ID: cloud-antananarivo
+      FIREBASE_CLIENT_EMAIL: firebase-adminsdk-fbsvc@cloud-antananarivo.iam.gserviceaccount.com
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./firebase-service-account.json:/app/firebase-service-account.json:ro
     networks:
       - cloud_network
-    volumes:
-      - ./backend:/app
-      - /app/node_modules
+    restart: on-failure
 
-  # Frontend React
+  # Frontend React (Vite dev server)
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: cloud_frontend
+    environment:
+      VITE_API_URL: http://backend:3000
     ports:
       - "5173:5173"
     depends_on:
       - backend
     networks:
       - cloud_network
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+    restart: on-failure
 
 volumes:
   postgres_data:

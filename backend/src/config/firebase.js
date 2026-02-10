@@ -1,4 +1,6 @@
 const admin = require('firebase-admin');
+const fs = require('fs');
+const path = require('path');
 
 let firebaseApp = null;
 let isFirebaseAvailable = false;
@@ -7,7 +9,19 @@ let storageBucket = null;
 
 const initializeFirebase = () => {
   try {
-    if (process.env.FIREBASE_PROJECT_ID && 
+    let credential = null;
+    let projectId = null;
+
+    // Méthode 1 : Fichier JSON (Docker avec volume monté ou GOOGLE_APPLICATION_CREDENTIALS)
+    const credentialFile = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    if (credentialFile && fs.existsSync(credentialFile)) {
+      const serviceAccount = JSON.parse(fs.readFileSync(credentialFile, 'utf8'));
+      credential = admin.credential.cert(serviceAccount);
+      projectId = serviceAccount.project_id;
+      console.log('🔑 Firebase: credentials loaded from JSON file');
+    }
+    // Méthode 2 : Variables d'environnement individuelles
+    else if (process.env.FIREBASE_PROJECT_ID && 
         process.env.FIREBASE_PRIVATE_KEY && 
         process.env.FIREBASE_CLIENT_EMAIL) {
       
@@ -18,9 +32,15 @@ const initializeFirebase = () => {
         client_email: process.env.FIREBASE_CLIENT_EMAIL,
       };
 
+      credential = admin.credential.cert(serviceAccount);
+      projectId = process.env.FIREBASE_PROJECT_ID;
+      console.log('🔑 Firebase: credentials loaded from environment variables');
+    }
+
+    if (credential && projectId) {
       firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount),
-        storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
+        credential,
+        storageBucket: `${projectId}.appspot.com`,
       });
       
       // Initialize Firestore

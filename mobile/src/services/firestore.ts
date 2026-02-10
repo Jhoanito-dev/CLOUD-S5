@@ -52,6 +52,7 @@ export interface Report {
   surface?: number | null;
   budget?: number | null;
   company?: string;
+  niveau?: number | null;
   status: string;
   created_at: Timestamp | Date;
   user_uid: string;

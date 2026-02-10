@@ -28,6 +28,7 @@ interface Report {
   surface?: number | null;
   budget?: number | null;
   company?: string;
+  niveau?: number | null;
   status: string;
   created_at: any;
   user_uid?: string;
@@ -183,6 +184,10 @@ const MyReports: React.FC = () => {
                     
                     {report.surface && (
                       <span>{report.surface} m²</span>
+                    )}
+
+                    {report.niveau && (
+                      <span>Niveau: <strong>{report.niveau}/10</strong></span>
                     )}
                     
                     {report.budget && (
