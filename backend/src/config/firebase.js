@@ -7,10 +7,33 @@ let storageBucket = null;
 
 const initializeFirebase = () => {
   try {
-    if (process.env.FIREBASE_PROJECT_ID && 
-        process.env.FIREBASE_PRIVATE_KEY && 
-        process.env.FIREBASE_CLIENT_EMAIL) {
-      
+    // Prefer GOOGLE_APPLICATION_CREDENTIALS (mounted file) when present
+    let serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+    // Also accept the common mounted path if file exists
+    const defaultMountedPath = '/secrets/service-account.json';
+    if (!serviceAccountPath && require('fs').existsSync(defaultMountedPath)) {
+      serviceAccountPath = defaultMountedPath;
+    }
+
+    if (serviceAccountPath) {
+      const serviceAccount = require(serviceAccountPath);
+
+      firebaseApp = admin.initializeApp({
+        credential: admin.credential.cert(serviceAccount),
+        storageBucket: `${serviceAccount.project_id}.appspot.com`,
+      });
+
+      firestoreDb = admin.firestore();
+      storageBucket = admin.storage().bucket();
+      isFirebaseAvailable = true;
+      console.log('✅ Firebase initialized using service account file:', serviceAccountPath);
+      console.log('✅ Firestore database connected');
+      console.log('✅ Firebase Storage connected');
+      return;
+    }
+
+    // Fallback to individual environment variables (existing behavior)
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_PRIVATE_KEY && process.env.FIREBASE_CLIENT_EMAIL) {
       const serviceAccount = {
         type: 'service_account',
         project_id: process.env.FIREBASE_PROJECT_ID,
@@ -22,20 +45,17 @@ const initializeFirebase = () => {
         credential: admin.credential.cert(serviceAccount),
         storageBucket: `${process.env.FIREBASE_PROJECT_ID}.appspot.com`,
       });
-      
-      // Initialize Firestore
+
       firestoreDb = admin.firestore();
-      
-      // Initialize Storage
       storageBucket = admin.storage().bucket();
-      
       isFirebaseAvailable = true;
-      console.log('✅ Firebase initialized successfully');
+      console.log('✅ Firebase initialized using env vars');
       console.log('✅ Firestore database connected');
       console.log('✅ Firebase Storage connected');
-    } else {
-      console.log('⚠️ Firebase credentials not provided, using local database only');
+      return;
     }
+
+    console.log('⚠️ Firebase credentials not provided, using local database only');
   } catch (error) {
     console.error('❌ Firebase initialization error:', error.message);
     isFirebaseAvailable = false;

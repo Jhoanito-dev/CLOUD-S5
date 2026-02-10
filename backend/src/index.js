@@ -34,6 +34,11 @@ app.use(express.urlencoded({ extended: true }));
 
 // Swagger Documentation
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+// Expose le JSON brut pour Postman
+app.get('/api-docs.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.send(swaggerSpec);
+});
 
 // API Routes
 app.use('/api/auth', authRoutes);

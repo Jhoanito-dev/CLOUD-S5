@@ -14,6 +14,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
     networks:
       - cloud_network
 
@@ -42,17 +47,27 @@ services:
       FIREBASE_PROJECT_ID: ${FIREBASE_PROJECT_ID}
       FIREBASE_PRIVATE_KEY: ${FIREBASE_PRIVATE_KEY}
       FIREBASE_CLIENT_EMAIL: ${FIREBASE_CLIENT_EMAIL}
+      # Prefer mounting service account JSON and pointing GOOGLE_APPLICATION_CREDENTIALS
+      GOOGLE_APPLICATION_CREDENTIALS: /secrets/service-account.json
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       MAX_LOGIN_ATTEMPTS: 3
       SESSION_DURATION: 3600
     ports:
       - "3000:3000"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     networks:
       - cloud_network
     volumes:
       - ./backend:/app
+      # Mount service account JSON (read-only)
+      - "./compte de service backend/cloud-antananarivo-firebase-adminsdk-fbsvc-e554671b9d.json:/secrets/service-account.json:ro"
       - /app/node_modules
 
   # Frontend React
@@ -65,6 +80,11 @@ services:
       - "5173:5173"
     depends_on:
       - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5173 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     networks:
       - cloud_network
     volumes:
