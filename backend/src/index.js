@@ -12,20 +12,24 @@ const photosRoutes = require('./routes/photos');
 const configRoutes = require('./routes/config');
 
 const { errorHandler } = require('./middleware/errorHandler');
+const { createProxyMiddleware } = require('http-proxy-middleware');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Proxy pour servir les tuiles offline via /tiles/
-// Désactivé en mode local sans Docker - le frontend utilisera OpenStreetMap
-// Pour activer: décommenter et lancer TileServer sur le port 8080
-/*
-app.use('/tiles', require('http-proxy-middleware').createProxyMiddleware({
-  target: 'http://localhost:8080/data/antananarivo',
+const TILESERVER_URL = process.env.TILESERVER_URL || 'http://localhost:8080';
+app.use('/tiles', createProxyMiddleware({
+  target: `${TILESERVER_URL}/data/antananarivo`,
   pathRewrite: { '^/tiles': '' },
   changeOrigin: true,
+  on: {
+    error: (err, req, res) => {
+      console.warn('⚠️ TileServer non disponible, les tuiles offline ne sont pas accessibles');
+      res.status(503).json({ error: 'TileServer not available' });
+    }
+  }
 }));
-*/
 
 // Middleware
 app.use(cors());
