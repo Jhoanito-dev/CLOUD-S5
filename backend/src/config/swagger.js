@@ -51,6 +51,7 @@ const options = {
             budget: { type: 'number' },
             company: { type: 'string' },
             status: { type: 'string', enum: ['new', 'in_progress', 'done'] },
+            niveau: { type: 'integer', minimum: 1, maximum: 10, description: 'Niveau de dégradation (1-10)' },
             created_at: { type: 'string', format: 'date-time' },
           },
         },

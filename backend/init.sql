@@ -46,6 +46,7 @@ CREATE TABLE reports (
     budget DECIMAL(15, 2),
     company VARCHAR(255),
     status report_status DEFAULT 'new',
+    niveau INTEGER CHECK (niveau >= 1 AND niveau <= 10),
     photo_url TEXT,
     date_nouveau TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     date_en_cours TIMESTAMP,
